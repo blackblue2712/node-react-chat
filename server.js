@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const expressValidator = require('express-validator');
 const bodyParser = require('body-parser');
 const fs = require('fs');
+const cors = require('cors');
 
 dotenv.config();
 const port = process.env.PORT || 3000;
@@ -34,6 +35,7 @@ app.get('/', (req, res) => {
 
 // Middleware
 app.use(morgan("dev"));
+app.use(cors());
 app.use(bodyParser.json());
 app.use(expressValidator());
 app.use('/', postRoute);
@@ -41,6 +43,7 @@ app.use('/', authRoute);
 app.use('/users', userRoute);
 
 app.use(function (err, req, res, next) {
+  console.log(err);
   if (err.name === 'UnauthorizedError') {
     res.status(401).json( {error: "Unauthorized"} );
   }

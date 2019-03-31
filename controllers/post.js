@@ -18,15 +18,16 @@ module.exports.isPoster = (req, res, next) => {
 	let isPoster = req.post && req.payload && req.post.postedBy._id == req.payload._id;
 	
 	if (!isPoster) {
-		return res.status(403).json( {err: '!isPoster. No authorized'} );
+		return res.status(403).json( {error: '!isPoster. No authorized'} );
 	}
 	next();
 }
 
 module.exports.getPosts = (req, res) => {
 	const post = Post.find()
-					 .populate('postedBy', '_id name')
-					 .select('_id title body')
+					 .populate('postedBy', '_id name photo.contentType')
+					 .select('_id title body created')
+					 .sort({created: -1})
 					 .then( posts => res.json(posts) )
 					 .catch( err => console.log(err) )
 
@@ -43,8 +44,7 @@ module.exports.createPost = (req, res) => {
 		let post = new Post(fields);
 		req.profile.hash_password = undefined;
 		req.profile.salt = undefined;
-		post.postedBy = req.profile;
-
+		post.postedBy = req.profile._id;
 
 		if (files.photo) {
 			post.photo.data = fs.readFileSync(files.photo.path);

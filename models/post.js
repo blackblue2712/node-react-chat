@@ -22,7 +22,12 @@ const postSchema = new Schema ({
 	postedBy: {
 		type: ObjectId,
 		ref: 'User'
-	}
+	},
+	created: {
+		type: Date,
+		default: Date.now,
+	},
+	updated: Date,
 });
 
 const Post = mongoose.model("Post", postSchema, "post");
