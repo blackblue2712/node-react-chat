@@ -6,7 +6,8 @@ const {
     signin,
     signout,
     forgotPassword,
-    resetPassword
+    resetPassword,
+    socialLogin
 } = require('../controllers/auth');
 const { userById } = require('../controllers/user');
 const { userSignupValidator, passwordResetValidator } = require('../middlewares/index');
@@ -17,6 +18,7 @@ router.get('/', getUsers);
 router.post('/signup', userSignupValidator, signup);
 router.post('/signin', signin);
 router.get('/signout', signout);
+router.post('/social-login', socialLogin);
 
 router.put('/forgot-password', forgotPassword);
 router.put('/reset-password', passwordResetValidator, resetPassword);

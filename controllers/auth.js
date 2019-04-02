@@ -138,5 +138,37 @@ module.exports.resetPassword = (req, res) => {
 }
 
 module.exports.socialLogin = (req, res) => {
-	// try finding  user with  req.email
+	// try finding  user with  req.body.email
+	User.findOne( {email: req.body.email} ,(err, user) => {
+		if(err || !user) {
+			// Create new user and login
+			user = new User(req.body);
+			req.profile = user;
+			user.save();
+
+			// Generate token with userid and secret 
+			const token = jwt.sign(
+				{_id: user._id, iss: "NODEAPI"},
+				process.env.JWT_SECRET
+			);
+			res.cookie("t", token, {expire: new Date() + 3600});
+			// return response with user and token to fronted client
+			const { _id, name, email } = user;
+			return res.json( {token, user: {_id, name, email}} );
+		} else {
+			// update existing user with new social info and login
+			req.profile = user;
+			usre = _.extend(user, req.body);
+			user.updated = Date.now();
+			user.save();
+			const token = jwt.sign(
+                { _id: user._id, iss: "NODEAPI" },
+                process.env.JWT_SECRET
+            );
+            res.cookie("t", token, { expire: new Date() + 3600 });
+            // return response with user and token to frontend client
+            const { _id, name, email } = user;
+            return res.json({ token, user: { _id, name, email } });
+		}
+	});
 }
