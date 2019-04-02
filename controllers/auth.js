@@ -1,6 +1,14 @@
 const jwt = require('jsonwebtoken');
 const expressJwt = require('express-jwt');
 const User = require("../models/user");
+
+const _ = require("lodash");
+const { sendMail } = require("../helpers");
+// load env
+const dotenv = require("dotenv");
+dotenv.config();
+
+
 require('dotenv').config();
 
 module.exports.getUsers = (req, res) => {
@@ -24,7 +32,9 @@ module.exports.signup = async (req, res) => {
 module.exports.signin = (req, res, next) => {
 	// find the user based on email
 	const { email, password } = req.body;
+	console.log("=========",email)
 	User.findOne({email: email}, (err, user) => {
+		console.log("=========",user)
 		// if error or no user
 		if (err || !user) return res.status(401).json({
 			error: 'User with that email does not exist. Please sign in again'
@@ -38,7 +48,7 @@ module.exports.signin = (req, res, next) => {
 		}
 
 		// generate a token with user id and secret
-		const token = jwt.sign({'_id': user._id}, process.env.JWT_SECRECT);
+		const token = jwt.sign({'_id': user._id}, process.env.JWT_SECRET);
 		// persist the token as 't' in cookie with expiry date
 		res.cookie('t', token, { expire: new Date() + 3600 });
 		// return response with user and token to frontend client
@@ -57,6 +67,76 @@ module.exports.signout = (req, res) => {
 module.exports.requireSignin = expressJwt({
 	// if the token is valid, express jwt appends the verified users id
 	// in an auth key to the request object
-	secret: process.env.JWT_SECRECT,
+	secret: process.env.JWT_SECRET,
 	userProperty: 'payload'
 })
+
+module.exports.forgotPassword = (req, res) => {
+	if(!req.body) return res.status(400).json( {error: "No request body"} );
+	if(!req.body.email) return res.status(400).json( {error: "No email in request body"});
+
+	console.log("forgot password finding user with that email");
+	const email = req.body.email;
+	// console.log("signin request.body", email);
+	// Find the user based on email
+	User.findOne( {email}, (err, user) => {
+		if(err || !user) return res.status(401).json( {error: "User with that email  does not exist!"})
+
+		// Generate a token with userid and secret
+		const token = jwt.sign(
+			{_id: user._id, iss: "NODEAPI"},
+			process.env.JWT_SECRET
+		);
+
+		// Email data
+		const emailData = {
+            from: "noreply@node-react.com",
+            to: email,
+            subject: "Password Reset Instructions",
+            text: `Please use the following link to reset your password: ${
+                process.env.CLIENT_URL
+            }/reset-password/${token}`,
+            html: `<p>Please use the following link to reset your password:</p> <p>${
+                process.env.CLIENT_URL
+            }/reset-password/${token}</p>`
+		};
+		
+		return user.updateOne( {resetPasswordLink: token }, (err, success) => {
+			if(err) return res.status(400).json( {error: err} );
+			else {
+				sendMail(emailData);
+				return res.status(200).json(
+					{message: `Email has been send to ${email}. Follow the instructions to reset your password.`}
+				)
+			}
+		})
+
+
+	});
+}
+
+module.exports.resetPassword = (req, res) => {
+	const { resetPasswordLink, newPassword } = req.body;
+	
+	User.findOne( {resetPasswordLink }, (err, user) => {
+		if(err || !user) {
+			return res.status(401).json( {error: "Invalid link!"} );
+		}
+		const updateFields = {
+			password: newPassword,
+			resetPasswordLink: ""
+		}
+
+		user = _.extend(user, updateFields);
+		user.updated = Date.now();
+
+		user.save(  (err, result) => {
+			if(err) return res.status(400).json( {error:err} );
+			res.json( {message: "Great! Now you can login with your new password."});
+		});
+	});
+}
+
+module.exports.socialLogin = (req, res) => {
+	// try finding  user with  req.email
+}

@@ -59,7 +59,7 @@ module.exports.userSignupValidator = (req, res, next) => {
 
 module.exports.userUpdateValidator = (req, res, next) => {
 	req.check('name', 'Name is required').notEmpty();
-	req.check('email', 'Email is requried').notEmpty();
+	req.check('email', 'Email is required').notEmpty();
 	req.check('email')
 	   .matches(/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/)
 	   .withMessage('Invalid email')
@@ -78,4 +78,27 @@ module.exports.userUpdateValidator = (req, res, next) => {
 
  	// process to next middleware
  	next();
+}
+
+module.exports.passwordResetValidator = (req, res, next) => {
+	// Check for password
+	req.check("newPassword", "Password is required").notEmpty();
+	req.check("newPassword")
+		.isLength( {min: 6} )
+		.withMessage("Password must be at least 6 chars long")
+		.matches(/\d/)
+		.withMessage("must contain a number")
+		.withMessage("Password must contain a number");
+
+	// check for errors
+	const errors = req.validationErrors();
+	// if error show the first one as they happen
+	if (errors) {
+		const firstError = errors.map(error => error.msg)[0];
+		return res.status(400).json({ error: firstError });
+	}
+	// proceed to next middleware or ...
+	next();
+
+
 }
