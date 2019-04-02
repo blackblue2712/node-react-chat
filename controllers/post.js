@@ -7,6 +7,8 @@ const Post = require("../models/post");
 module.exports.postById = (req, res, next, id) => {
 	Post.findById(id)
 	.populate('postedBy', '_id name')
+	.populate("comments.postedBy", "_id name photo.contentType")
+	// .populate("comments", "_id text created")
 	.exec( (err, post) => {
 		if (err) return res.status(400).json( {error: err} );
 		req.post = post;
@@ -26,7 +28,9 @@ module.exports.isPoster = (req, res, next) => {
 module.exports.getPosts = (req, res) => {
 	const post = Post.find()
 					 .populate('postedBy', '_id name photo.contentType')
-					 .select('_id title body created')
+					 .populate("comments.postedBy", "_id name photo.contentType")	
+					//  .populate("comments", "_id text created")
+					 .select('_id title body created photo.contentType likes')
 					 .sort({created: -1})
 					 .then( posts => res.json(posts) )
 					 .catch( err => console.log(err) )
@@ -62,6 +66,7 @@ module.exports.createPost = (req, res) => {
 
 module.exports.postByUser = (req, res) => {
 	Post.find( {postedBy: req.profile._id} )
+			  .select("_id title photo.contentType likes")
 			  .populate('postedBy', '_id name')
 			  .sort('created')
 			  .exec( (err, posts) => {
@@ -79,11 +84,95 @@ module.exports.deletePost = (req, res) => {
 }
 
 module.exports.updatePost = (req, res) => {
-	let post = req.post;
-	post = _.extend(post, req.body);
+	let form = formidable.IncomingForm();
+	form.keepExtensions = true;
+	form.parse(req, (err, fields, files) => {
+		if(err) {
+			return res.status(400).json( {error: "Photo could not be uploaded file"} );
+		}
+		// save post
+		let post = req.post;
+		post = _.extend(post, fields);
+		post.updated = Date.now();
 
-	post.save( (err, post) => {
-		if (err) return res.status(400).json( {error: err} );
-		res.json(post);
+		if(files.photo) {
+			post.photo.data = fs.readFileSync(files.photo.path);
+			post.photo.contentType = files.photo.type;
+		}
+
+		post.save( (err) => {
+			if(err) return res.status(400).json( {error: err} );
+
+			res.json(post);
+		})
+
+	})
+}
+
+module.exports.postPhoto = async (req, res) => {
+	res.set("Content-Type", req.post.photo.contentType);
+	await res.send(req.post.photo.data);
+}
+
+module.exports.singlePost = (req, res) => {
+	return res.json(req.post);
+}
+
+module.exports.like = (req, res) => {
+	Post.findByIdAndUpdate( req.body.postId,
+		{$push: {likes: req.body.userId}},
+		{new: true} // Return giá trị sau khi đã update	
+	).exec( (err, result) => {
+		if(err) return res.status(400).json( {error: err})
+
+		res.json(result);
+	});	
+}
+
+module.exports.unlike = (req, res) => {
+	Post.findByIdAndUpdate( req.body.postId,
+		{$pull: {likes: req.body.userId}},
+		{new: true} // Return giá trị sau khi đã update	
+	).exec( (err, result) => {
+		if(err) return res.status(400).json( {error: err})
+
+		res.json(result);
+	});
+	
+}
+
+module.exports.comment = (req, res) => {
+
+	const comment = req.body.comment;
+	console.log(comment)
+	const postId = req.body.postId;
+	comment.postedBy = req.body.userId;
+
+	Post.findByIdAndUpdate( postId,
+		{$push: {comments: comment}},
+		{new: true}
+	)
+	.populate("comments.postedBy", "_id name photo.contentType")	
+	.populate("postedBy", "_id name photo.contentType")
+	.exec( (err, result) => {
+		if(err) return res.status(400).json( {error: err})
+
+		res.json(result);
+	});
+}
+
+module.exports.uncomment = (req, res) => {
+	const comment = req.body.comment;
+	const postId = req.body.postId;
+
+	Post.findByIdAndUpdate( postId,
+		{$pull: {comments: {_id: comment._id} }},
+		{new: true}
+	)
+	.populate("comments.postedBy", "_id name photo.contentType")
+	.exec( (err, result) => {
+		if(err) return res.status(400).json( {error: err})
+
+		res.json(result);
 	});
 }
