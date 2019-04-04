@@ -1,6 +1,6 @@
 ## Node js API use for React-social-network
 
-[![Node API])(https://csharpcorner-mindcrackerinc.netdna-ssl.com/article/creating-simple-api-in-node-js/Images/image001.png)]
+[![Node API](https://csharpcorner-mindcrackerinc.netdna-ssl.com/article/creating-simple-api-in-node-js/Images/image001.png)]
 
 After clone: 
 ```sh
